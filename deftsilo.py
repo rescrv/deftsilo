@@ -33,6 +33,7 @@ from __future__ import print_function
 
 import collections
 import getopt
+import hashlib
 import os
 import shlex
 import subprocess
@@ -47,20 +48,19 @@ Mkdir = collections.namedtuple('Mkdir', 'lineno dst')
 
 
 def get_sha1s_for(relativeto, path):
-    path = os.path.normpath(os.path.join(relativeto, path))
-    pipe = subprocess.Popen(["git", "rev-list", "--objects", "--all"],
-            shell=False, stdout=subprocess.PIPE, cwd=relativeto)
+    path = os.path.normpath(path)
+    cmdline = ['git', 'whatchanged', '--follow', '--no-abbrev', '--oneline', path]
+    pipe = subprocess.Popen(cmdline, shell=False, stdout=subprocess.PIPE, cwd=relativeto)
     stdout, stderr = pipe.communicate()
     ret = []
     for line in stdout.split('\n'):
-        if ' ' not in line:
+        if not line.startswith(':'):
             continue
-        sha1, fname = line.split(' ', 1)
-        if os.path.normpath(fname) == path:
-            shapipe = subprocess.Popen(["git", "cat-file", "blob", sha1],
+        sha1 = line.split(' ')[3]
+        shapipe = subprocess.Popen(["git", "cat-file", "blob", sha1],
                     shell=False, stdout=subprocess.PIPE)
-            stdout, stderr = shapipe.communicate()
-            ret.append(hashlib.sha1(stdout).hexdigest())
+        stdout, stderr = shapipe.communicate()
+        ret.append(hashlib.sha1(stdout).hexdigest())
     return ret
 
 
