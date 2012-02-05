@@ -292,12 +292,14 @@ def deftsilo(inputfile):
             errstr = 'non-existent file "{0}" on line {1}'
             raise RuntimeError(errstr.format(action.src, action.lineno))
     script = shellscript(inputfile, actions)
-    output = os.path.splitext(inputfile)[0] + '.sh'
+    output = os.path.join(os.path.dirname(inputfile), 'dotfiles.sh')
     with open(output, 'w') as fout:
         fout.write(script)
         fout.flush()
-    tar = tarfile.open(os.path.splitext(inputfile)[0] + '.tar.gz', 'w:gz')
+    tar = tarfile.open(os.path.join(os.path.dirname(inputfile), 'dotfiles.tar.gz'), 'w:gz')
     files = [a.src for a in actions if hasattr(a, 'src')]
+    tar.add(inputfile, os.path.join('dotfiles', os.path.basename(inputfile)))
+    tar.add(output, 'dotfiles/dotfiles.sh')
     for filename in files:
         tar.add(os.path.join(os.path.dirname(inputfile), filename),
                 os.path.join('dotfiles', filename))
