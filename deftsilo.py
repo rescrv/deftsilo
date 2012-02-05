@@ -194,16 +194,16 @@ def generate_copy_check(relativeto, copy):
     sha1s = get_sha1s_for(relativeto, copy.src)
     src, dst = safe_src_dst(copy)
     ret  = '# Generated from line number {lineno} in {filename}\n'.format(lineno=0, filename='abc')
-    ret += 'if test "!" -d `${{SHTOOL}} path --dirname {0}`; then\n'.format(dst)
-    ret += '    ${{SHTOOL}} echo cannot copy \'"\'{0}\'"\' to \'"\'{1}\'"\' because the parent directory does not exist; exit 1;\n'.format(src, dst)
+    prefix = ''
     if sha1s:
-        ret += 'elif test -f {0}; then\n'.format(dst)
-        ret += '    case `hash {0} in\n'.format(dst)
+        prefix = 'el'
+        ret += 'if test -f {0}; then\n'.format(dst)
+        ret += '    case `dshash {0}` in\n'.format(dst)
         for sha1 in sha1s:
             ret += '        {0}) ${{SHTOOL}} echo \'"\'{1}\'"\' matches \'"\'{0}\'"\';;\n'.format(sha1, src)
-        ret += '    *) ${{SHTOOL}} echo cannot copy \'"\'{0}\'"\' to \'"\'{1}\'"\' because there are unsaved changes; exit 1;;\n'.format(src, dst)
+        ret += '        *) ${{SHTOOL}} echo cannot copy \'"\'{0}\'"\' to \'"\'{1}\'"\' because there are unsaved changes; exit 1;;\n'.format(src, dst)
         ret += '    esac\n'
-    ret += 'elif test -e {0}; then\n'.format(dst)
+    ret += '{0}if test -e {1}; then\n'.format(prefix, dst)
     ret += '    ${{SHTOOL}} echo cannot copy \'"\'{0}\'"\' to \'"\'{1}\'"\' because the target exists; exit 1;\n'.format(src, dst)
     ret += 'fi\n'
     return ret;
@@ -212,10 +212,7 @@ def generate_copy_check(relativeto, copy):
 def generate_link_check(relativeto, link):
     src, dst = safe_src_dst(link)
     ret = '''# Generated from line number {lineno} in {filename}
-if test "!" -d `${{SHTOOL}} path --dirname {dst}`; then
-    ${{SHTOOL}} echo cannot link '"'{dst}'"' to '"'{src}'"' because the parent directory does not exist
-    exit 1
-elif test -L {dst} && test `realpath {src}` != `realpath {dst}`; then
+if test -L {dst} && test `readlink -f {src}` != `readlink -f {dst}`; then
     ${{SHTOOL}} echo cannot link '"'{dst}'"' to '"'{src}'"' because the link points elsewhere
     exit 1
 elif test -L {dst}; then
@@ -231,10 +228,7 @@ fi
 def generate_mkdir_check(relativeto, mkdir):
     dst = safe_dst(mkdir)
     ret  = '''# Generated from line number {lineno} in {filename}
-if test "!" -d `${{SHTOOL}} path --dirname {dst}`; then
-    ${{SHTOOL}} echo cannot mkdir '"'{dst}'"' because the parent directory does not exist
-    exit 1
-elif test -d {dst}; then
+if test -d {dst}; then
     true
 elif test -e {dst}; then
     ${{SHTOOL}} echo cannot mkdir '"'{dst}'"' because something exists
@@ -246,12 +240,12 @@ fi
 
 def generate_copy_action(relativeto, copy):
     src, dst = safe_src_dst(copy)
-    return '${{SHTOOL}} install -C {src} {dst}'.format(src=src, dst=dst)
+    return '${{SHTOOL}} install -m - -C {src} {dst}'.format(src=src, dst=dst)
 
 
 def generate_link_action(relativeto, link):
     src, dst = safe_src_dst(link)
-    return '${{SHTOOL}} mkln -s {src} {dst}'.format(src=src, dst=dst)
+    return '${{SHTOOL}} mkln -f -s {src} {dst}'.format(src=src, dst=dst)
 
 
 def generate_mkdir_action(relativeto, mkdir):
@@ -270,6 +264,11 @@ RELATIVETO=`shtool path --dirname $0`
 if test -z "${RELATIVETO}"; then
     RELATIVETO=.
 fi
+
+dshash ()
+{
+    shasum $1 | awk '{print $1}'
+}
 '''
     relativeto = os.path.dirname(inputfile) or '.'
     checks = {Copy: generate_copy_check
