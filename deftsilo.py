@@ -180,6 +180,11 @@ def shell_escape(path):
     return path
 
 
+def sha1_cases(relativeto, src):
+    sha1s = get_sha1s_for(relativeto, src)
+    return ''.join([s + ') ;;\n' + ' ' * 8 for s in sha1s])
+
+
 def safe_dst(action):
     return '"${DESTDIR}"/' + shell_escape(action.dst)
 
@@ -191,37 +196,39 @@ def safe_src_dst(action):
 
 
 def generate_copy_check(relativeto, copy):
-    sha1s = get_sha1s_for(relativeto, copy.src)
     src, dst = safe_src_dst(copy)
-    ret  = '# Generated from line number {lineno} in {filename}\n'.format(lineno=0, filename='abc')
-    prefix = ''
-    if sha1s:
-        prefix = 'el'
-        ret += 'if test -f {0}; then\n'.format(dst)
-        ret += '    case `dshash {0}` in\n'.format(dst)
-        for sha1 in sha1s:
-            ret += '        {0}) ${{SHTOOL}} echo \'"\'{1}\'"\' matches \'"\'{0}\'"\';;\n'.format(sha1, src)
-        ret += '        *) ${{SHTOOL}} echo cannot copy \'"\'{0}\'"\' to \'"\'{1}\'"\' because there are unsaved changes; exit 1;;\n'.format(src, dst)
-        ret += '    esac\n'
-    ret += '{0}if test -e {1}; then\n'.format(prefix, dst)
-    ret += '    ${{SHTOOL}} echo cannot copy \'"\'{0}\'"\' to \'"\'{1}\'"\' because the target exists; exit 1;\n'.format(src, dst)
-    ret += 'fi\n'
-    return ret;
+    sha1hashes = sha1_cases(relativeto, copy.src)
+    ret = '''# Generated from line number {lineno} in {filename}
+if test -f {dst}; then
+    case `dshash {dst}` in
+        {sha1hashes}*) ${{SHTOOL}} echo cannot copy \'"\'{src}\'"\' to \'"\'{dst}\'"\' because there are unsaved changes; exit 1;;
+    esac
+elif test -e {dst}; then
+    ${{SHTOOL}} echo cannot copy \'"\'{src}\'"\' to \'"\'{dst}\'"\' because the target exists
+    exit 1
+fi
+'''.format(lineno=0, filename='abc', sha1hashes=sha1hashes, src=src, dst=dst)
+    return ret
 
 
 def generate_link_check(relativeto, link):
     src, dst = safe_src_dst(link)
+    sha1hashes = sha1_cases(relativeto, link.src)
     ret = '''# Generated from line number {lineno} in {filename}
 if test -L {dst} && test `readlink -f {src}` != `readlink -f {dst}`; then
     ${{SHTOOL}} echo cannot link '"'{dst}'"' to '"'{src}'"' because the link points elsewhere
     exit 1
 elif test -L {dst}; then
     true
+elif test -f {dst}; then
+    case `dshash {dst}` in
+        {sha1hashes}*) ${{SHTOOL}} echo cannot link \'"\'{dst}\'"\' to \'"\'{src}\'"\' because there are unsaved changes; exit 1;;
+    esac
 elif test -e {dst}; then
-    ${{SHTOOL}} echo cannot link '"'{dst}'"' to '"'{src}'"' because the link exists
+    ${{SHTOOL}} echo cannot link '"'{dst}'"' to '"'{src}'"' because the destination exists
     exit 1
 fi
-'''.format(lineno=0, filename='abc', src=src, dst=dst)
+'''.format(lineno=0, filename='abc', sha1hashes=sha1hashes, src=src, dst=dst)
     return ret
 
 
