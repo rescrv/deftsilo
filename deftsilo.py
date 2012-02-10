@@ -252,7 +252,9 @@ def generate_copy_action(relativeto, copy):
 
 def generate_link_action(relativeto, link):
     src, dst = safe_src_dst(link)
-    return '${{SHTOOL}} mkln -f -s {src} {dst}'.format(src=src, dst=dst)
+    return '''if test '!' {src} -ef {dst}; then
+    ${{SHTOOL}} mkln -s {src} {dst}
+fi'''.format(src=src, dst=dst)
 
 
 def generate_mkdir_action(relativeto, mkdir):
