@@ -354,18 +354,23 @@ def createtarfile(inputfile, shtool):
     tar.close()
 
 
+DESCRIPTION = '''deftsilo is a management tool for dotfiles.'''
+
+
 def main(args):
-    parser = argparse.ArgumentParser(description='top-level descr')
-    parser.add_argument('action', type=str, help='action help')
-    parser.add_argument('inputfile', type=str, help='input help')
+    parser = argparse.ArgumentParser(description=DESCRIPTION)
+    parser.add_argument('action', type=str, choices=('run', 'tar'),
+                        help='how to process the manifest')
+    parser.add_argument('manifest', type=str,
+                        help='the manifest to process')
     args = parser.parse_args(args)
     try:
-        shtool = os.path.join(os.path.dirname(args.inputfile), 'shtool')
+        shtool = os.path.join(os.path.dirname(args.manifest), 'shtool')
         shtoolize(shtool)
         if args.action == 'run':
-            return runfromgit(args.inputfile)
+            return runfromgit(args.manifest)
         elif args.action == 'tar':
-            return createtarfile(args.inputfile, shtool)
+            return createtarfile(args.manifest, shtool)
         else:
             raise RuntimeError("Unknown action %s" % repr(args.action))
     except RuntimeError as e:
