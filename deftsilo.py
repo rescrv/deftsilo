@@ -76,7 +76,6 @@ sha1hash ()
     shasum "$1" | awk '{print $1}'
 }
 
-DESTDIR=/tmp/fuck/
 '''
 
 CHECKS = '#################################### CHECKS ####################################\n\n'
@@ -179,6 +178,18 @@ def parse(inputfile):
     return actions
 
 
+def validate(inputfile, gitaction, actions):
+    for action in actions:
+        if hasattr(action, 'src'):
+            path = os.path.join(os.path.dirname(inputfile), action.src)
+            if not os.path.exists(path):
+                errstr = 'non-existent file "{0}" on line {1}'
+                raise RuntimeError(errstr.format(action.src, action.lineno))
+            if os.path.isdir(path) and gitaction != 'link':
+                errstr = 'dotfile "{0}" is a directory on line {1}'
+                raise RuntimeError(errstr.format(action.src, action.lineno))
+
+
 def shell_escape(path):
     return path
 
@@ -262,10 +273,10 @@ fi\n'''.format(src=src, dst=dst)
         return head + '${{SHTOOL}} install -m - -C {src} {dst}\n'.format(src=src, dst=dst)
 
 
-def shellscript(inputfile, actionlist, git):
+def shellscript(inputfile, actionlist, gitaction):
+    assert gitaction in ('link', 'copy')
     checks = {Mkdir: generate_mkdir_check,
               Dotfile: generate_dotfile_check}
-    gitaction = 'link' if git else 'copy'
     checkscript = '\n'.join([checks[type(a)](inputfile, gitaction, a)
                              for a in actionlist])
     actions = {Mkdir: generate_mkdir_action,
@@ -286,13 +297,8 @@ def shtoolize(outputfile):
 
 def runfromgit(inputfile):
     actions = parse(inputfile)
-    for action in actions:
-        if hasattr(action, 'src'):
-            path = os.path.join(os.path.dirname(inputfile), action.src)
-            if not os.path.exists(path):
-                errstr = 'non-existent file "{0}" on line {1}'
-                raise RuntimeError(errstr.format(action.src, action.lineno))
-    script = shellscript(inputfile, actions, git='link')
+    validate(inputfile, 'link', actions)
+    script = shellscript(inputfile, actions, gitaction='link')
     pipe = subprocess.Popen(['sh'], cwd=os.path.dirname(inputfile) or '.',
                             shell=False, stdin=subprocess.PIPE)
     pipe.stdin.write(script)
@@ -303,11 +309,8 @@ def runfromgit(inputfile):
 
 def createtarfile(inputfile, shtool):
     actions = parse(inputfile)
-    for action in actions:
-        if hasattr(action, 'src') and not os.path.exists(action.src):
-            errstr = 'non-existent file "{0}" on line {1}'
-            raise RuntimeError(errstr.format(action.src, action.lineno))
-    script = shellscript(inputfile, actions, git='copy')
+    validate(inputfile, 'copy', actions)
+    script = shellscript(inputfile, actions, gitaction='copy')
     fout = tempfile.TemporaryFile()
     fout.write(script)
     fout.flush()
