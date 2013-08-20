@@ -288,6 +288,8 @@ def shellscript(inputfile, actionlist, gitaction):
 
 
 def shtoolize(outputfile):
+    if os.path.exists(outputfile):
+        return
     pipe = subprocess.Popen(['shtoolize', '-q', '-o', outputfile,
                              'echo', 'install', 'mkln', 'mkdir'])
     stdout, stderr = pipe.communicate()
