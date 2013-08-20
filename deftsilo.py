@@ -267,7 +267,7 @@ def generate_dotfile_action(inputfile, gitaction, dotfile):
            .format(lineno=dotfile.lineno, filename=inputfile)
     if action == 'link':
         return head + '''if test '!' {src} -ef {dst}; then
-    ${{SHTOOL}} mkln -s {src} {dst}
+    ${{SHTOOL}} mkln -f -s {src} {dst}
 fi\n'''.format(src=src, dst=dst)
     if action == 'copy':
         return head + '${{SHTOOL}} install -m - -C {src} {dst}\n'.format(src=src, dst=dst)
