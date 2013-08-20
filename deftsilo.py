@@ -309,6 +309,14 @@ def runfromgit(inputfile):
     return pipe.returncode
 
 
+def printscript(inputfile):
+    actions = parse(inputfile)
+    validate(inputfile, 'link', actions)
+    script = shellscript(inputfile, actions, gitaction='link')
+    print(script.strip())
+    return 0
+
+
 def createtarfile(inputfile, shtool):
     actions = parse(inputfile)
     validate(inputfile, 'copy', actions)
@@ -332,7 +340,7 @@ def createtarfile(inputfile, shtool):
 
 def main(args):
     parser = argparse.ArgumentParser(description=DESCRIPTION)
-    parser.add_argument('action', type=str, choices=('run', 'tar'),
+    parser.add_argument('action', type=str, choices=('run', 'show', 'tar'),
                         help='how to process the manifest')
     parser.add_argument('manifest', type=str,
                         help='the manifest to process')
@@ -342,6 +350,8 @@ def main(args):
         shtoolize(shtool)
         if args.action == 'run':
             return runfromgit(args.manifest)
+        if args.action == 'show':
+            return printscript(args.manifest)
         elif args.action == 'tar':
             return createtarfile(args.manifest, shtool)
         else:
