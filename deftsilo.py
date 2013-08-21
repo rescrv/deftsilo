@@ -89,13 +89,14 @@ class NoExitParser(argparse.ArgumentParser):
         raise ParseError(message)
 
 
-dotfile = NoExitParser()
-dotfile.add_argument('--git', dest='action', action='store_const', const='git', default='git')
-dotfile.add_argument('--copy', dest='action', action='store_const', const='copy')
-dotfile.add_argument('--link', dest='action', action='store_const', const='link')
-dotfile.add_argument('--prefix', '-p', dest='prefix', type=int, default=0)
-dotfile.add_argument('src', type=str, default=None)
-dotfile.add_argument('dst', nargs='?', type=str, default=None)
+dotfile_parser = NoExitParser()
+dotfile_parser.add_argument('--git', dest='action', action='store_const', const='git', default='git')
+dotfile_parser.add_argument('--copy', dest='action', action='store_const', const='copy')
+dotfile_parser.add_argument('--link', dest='action', action='store_const', const='link')
+dotfile_parser.add_argument('--prefix', '-p', dest='prefix', type=int, default=0)
+dotfile_parser.add_argument('--exact', '-e', dest='prefix', action='store_const', const=-1)
+dotfile_parser.add_argument('src', type=str, default=None)
+dotfile_parser.add_argument('dst', nargs='?', type=str, default=None)
 
 
 def add_dot_before_prefix(path, prefix):
@@ -126,9 +127,10 @@ def get_sha1s_for(relativeto, path):
 
 
 def parse_dotfile(lineno, cmd):
-    args = dotfile.parse_args(cmd)
+    args = dotfile_parser.parse_args(cmd)
+    prefix = args.prefix if args.prefix >= 0 else args.src.count('/') + 1
     return Dotfile(lineno=lineno, src=args.src, dst=args.dst,
-                   prefix=args.prefix, action=args.action)
+                   prefix=prefix, action=args.action)
 
 
 def parse_mkdir(lineno, cmd):
