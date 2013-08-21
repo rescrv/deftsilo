@@ -177,6 +177,14 @@ def parse(inputfile):
                 except ParseError as e:
                     e.lineno = lineno
                     raise e
+    def sort_key(x):
+        if type(x) == Mkdir:
+            return 0
+        elif type(x) == Dotfile:
+            return 1
+        else:
+            return 2
+    actions.sort(key=sort_key)
     return actions
 
 
