@@ -119,6 +119,8 @@ def get_sha1s_for(relativeto, path):
         if not line.startswith(':'):
             continue
         sha1 = line.split(' ')[3]
+        if sha1 == '0' * 40:
+            continue
         shapipe = subprocess.Popen(["git", "cat-file", "blob", sha1],
                     shell=False, stdout=subprocess.PIPE)
         stdout, stderr = shapipe.communicate()
