@@ -71,12 +71,35 @@ def generate_mkdir(root, directory):
 
 def generate_cp(root, file, refs):
     mode = get_mode(root, file)
-    return 'deftsilo_cp {f} {m} {r}\n'.format(f=shlex.quote(os.path.normpath(file)), m=mode, r=' '.join(refs))
+    return 'deftsilo_install {f} {m} {r}\n'.format(f=shlex.quote(os.path.normpath(file)), m=mode, r=' '.join(refs))
 
 def generate_script(root, directories, files):
     script = '''#!/bin/sh
 
 set -ex
+
+DEFTSILO_ROOT=`dirname $0`
+if test "x${DEFTSILO_ROOT}" = x;
+then
+    DEFTSILO_ROOT=.
+fi
+DEFTSILO_ROOT=`realpath -q ${DEFTSILO_ROOT}`
+DEFTSILO_INSTALL=deftsilo_cp
+
+while getopts "l" arg
+do
+    case "$1" in
+    -l)
+        echo "linking, not copying"
+        DEFTSILO_INSTALL=deftsilo_ln
+        shift
+        ;;
+    --)
+        shift
+        break
+        ;;
+    esac
+done
 
 DEFTSILO_TARGET="$1"
 shift
@@ -110,18 +133,45 @@ deftsilo_cp() {
         echo cannot copy "$dest": would clobber a directory
         exit 1
     elif test '!' -f "$dest"; then
-        cp $f $dest
-        chmod $m $dest
+        cp "${DEFTSILO_ROOT}/$f" "$dest"
+        chmod "$m" "$dest"
     else
         exp=`deftsilo_sha256 "$dest"`
         for hash in $@
         do
             if test x"$exp" = x"$hash"; then
-                cp $f $dest
-                chmod $m $dest
+                cp "${DEFTSILO_ROOT}/$f" "$dest"
+                chmod "$m" "$dest"
             fi
         done
     fi
+}
+
+deftsilo_ln() {
+    f="$1"
+    shift
+    m="$1"
+    shift
+    dest="${DEFTSILO_TARGET}/$f"
+    if test -d "$dest"; then
+        echo cannot copy "$dest": would clobber a directory
+        exit 1
+    elif test '!' -f "$dest"; then
+        ln -s "${DEFTSILO_ROOT}/$f" "$dest"
+    else
+        exp=`deftsilo_sha256 "$dest"`
+        for hash in $@
+        do
+            if test x"$exp" = x"$hash"; then
+                unlink "$dest"
+                ln -s "${DEFTSILO_ROOT}/$f" "$dest"
+            fi
+        done
+    fi
+}
+
+deftsilo_install() {
+    "$DEFTSILO_INSTALL" $@
 }
 
 '''
