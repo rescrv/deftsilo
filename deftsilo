@@ -76,7 +76,7 @@ def generate_cp(root, file, refs):
 def generate_script(root, directories, files):
     script = '''#!/bin/sh
 
-set -ex
+set -e
 
 DEFTSILO_ROOT=`dirname $0`
 if test "x${DEFTSILO_ROOT}" = x;
@@ -137,13 +137,19 @@ deftsilo_cp() {
         chmod "$m" "$dest"
     else
         exp=`deftsilo_sha256 "$dest"`
+        found=no
         for hash in $@
         do
             if test x"$exp" = x"$hash"; then
                 cp "${DEFTSILO_ROOT}/$f" "$dest"
                 chmod "$m" "$dest"
+                found=yes
             fi
         done
+        if test x"$found" = xno; then
+            echo failed to copy "$f": unsaved changes
+            exit 1
+        fi
     fi
 }
 
@@ -154,19 +160,27 @@ deftsilo_ln() {
     shift
     dest="${DEFTSILO_TARGET}/$f"
     if test -d "$dest"; then
-        echo cannot copy "$dest": would clobber a directory
+        echo cannot link "$dest": would clobber a directory
         exit 1
-    elif test '!' -f "$dest"; then
-        ln -s "${DEFTSILO_ROOT}/$f" "$dest"
-    else
+    elif test -L "$dest"; then
+        true
+    elif test -f "$dest"; then
         exp=`deftsilo_sha256 "$dest"`
+        found=no
         for hash in $@
         do
             if test x"$exp" = x"$hash"; then
                 unlink "$dest"
                 ln -s "${DEFTSILO_ROOT}/$f" "$dest"
+                found=yes
             fi
         done
+        if test x"$found" = xno; then
+            echo failed to copy "$f": unsaved changes
+            exit 1
+        fi
+    elif test '!' -L "$dest"; then
+        ln -s "${DEFTSILO_ROOT}/$f" "$dest"
     fi
 }
 
