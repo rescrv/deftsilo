@@ -176,7 +176,7 @@ deftsilo_ln() {
             fi
         done
         if test x"$found" = xno; then
-            echo failed to copy "$f": unsaved changes
+            echo failed to link "$f": unsaved changes
             exit 1
         fi
     elif test '!' -L "$dest"; then
