@@ -1,0 +1,15 @@
+[package]
+name = "deftsilo"
+version = "0.1.0"
+authors = ["Robert Escriva <robert@rescrv.net>"]
+edition = "2021"
+description = "deftsilo is a dotfiles manager"
+license = "Apache-2.0"
+repository = "https://github.com/rescrv/deftsilo"
+
+[dependencies]
+sha2 = "0.9"
+getopts = { version = "0.2" }
+
+arrrg = { version = "0.3" }
+arrrg_derive = { version = "0.3" }
