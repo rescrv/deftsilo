@@ -3,7 +3,10 @@
 use std::fmt::Write as FmtWrite;
 use std::fs::metadata;
 use std::io::{Error, ErrorKind, Write as IoWrite};
+#[cfg(target_os = "linux")]
 use std::os::linux::fs::MetadataExt;
+#[cfg(target_os = "macos")]
+use std::os::macos::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
