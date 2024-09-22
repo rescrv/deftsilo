@@ -13,7 +13,7 @@ use std::process::Command;
 use arrrg::CommandLine;
 use sha2::{Digest, Sha256};
 
-const SCRIPT: &'static str = r#"#!/bin/sh
+const SCRIPT: &str = r#"#!/bin/sh
 
 set -e
 
@@ -35,6 +35,9 @@ do
         ;;
     --)
         shift
+        break
+        ;;
+    *)
         break
         ;;
     esac
@@ -131,7 +134,7 @@ deftsilo_install() {
 
 "#;
 
-const TESTS: &'static str = r#"
+const TESTS: &str = r#"
 deftsilo_err_exit() {
     DEFTSILO_ERROR="$*"
 }
@@ -362,12 +365,21 @@ fn sha256bytes(s: &[u8]) -> String {
 
 fn history<P: AsRef<Path>>(root: P, relative: &str) -> Result<Vec<String>, Error> {
     let cmd = Command::new("git")
-        .args(["whatchanged", "--follow", "--no-abbrev", "--oneline", relative])
+        .args([
+            "whatchanged",
+            "--follow",
+            "--no-abbrev",
+            "--oneline",
+            relative,
+        ])
         .current_dir(root.as_ref())
         .output()?;
     std::io::stderr().write_all(&cmd.stderr)?;
     if !cmd.status.success() {
-        return Err(Error::new(ErrorKind::Other, format!("child exited {}", cmd.status)));
+        return Err(Error::new(
+            ErrorKind::Other,
+            format!("child exited {}", cmd.status),
+        ));
     }
     let stdout: String = String::from_utf8(cmd.stdout).map_err(Error::other)?;
     let lines: Vec<String> = stdout.split('\n').map(String::from).collect();
@@ -390,7 +402,10 @@ fn history<P: AsRef<Path>>(root: P, relative: &str) -> Result<Vec<String>, Error
             .output()?;
         std::io::stderr().write_all(&cmd.stderr)?;
         if !cmd.status.success() {
-            return Err(Error::new(ErrorKind::Other, format!("child exited {}", cmd.status)));
+            return Err(Error::new(
+                ErrorKind::Other,
+                format!("child exited {}", cmd.status),
+            ));
         }
         let hexdigest = sha256bytes(&cmd.stdout);
         digests.push(hexdigest);
@@ -415,26 +430,52 @@ fn path_to_string<P: AsRef<Path>>(path: P) -> Result<String, Error> {
 fn quoted_path<P: AsRef<Path>>(path: P) -> Result<String, Error> {
     let path_str: String = path_to_string(path)?;
     if path_str.chars().any(|c| c == '"' || c.is_ascii_control()) {
-        Err(Error::other("path contains '\"' or an ASCII control-character"))
+        Err(Error::other(
+            "path contains '\"' or an ASCII control-character",
+        ))
     } else {
         Ok(format!("\"{}\"", path_str))
     }
 }
 
-fn generate_mkdir<P1: AsRef<Path>, P2: AsRef<Path>>(root: P1, directory: P2) -> Result<String, Error> {
+fn generate_mkdir<P1: AsRef<Path>, P2: AsRef<Path>>(
+    root: P1,
+    directory: P2,
+) -> Result<String, Error> {
     let mode = get_mode(&root, &directory)?;
-    Ok(format!("deftsilo_mkdir {} {:o}\n", quoted_path(directory)?, mode))
+    Ok(format!(
+        "deftsilo_mkdir {} {:o}\n",
+        quoted_path(directory)?,
+        mode
+    ))
 }
 
-fn generate_install<P1: AsRef<Path>, P2: AsRef<Path>>(root: P1, file: P2, refs: Vec<String>) -> Result<String, Error> {
+fn generate_install<P1: AsRef<Path>, P2: AsRef<Path>>(
+    root: P1,
+    file: P2,
+    refs: Vec<String>,
+) -> Result<String, Error> {
     let mode = get_mode(&root, &file)?;
-    Ok(format!("deftsilo_install {} {:o} {}\n", quoted_path(file)?, mode, refs.join(" ")))
+    Ok(format!(
+        "deftsilo_install {} {:o} {}\n",
+        quoted_path(file)?,
+        mode,
+        refs.join(" ")
+    ))
 }
 
-fn assemble_paths<P1: AsRef<Path>, P2: AsRef<Path>>(root: P1, path: P2, directories: &mut Vec<PathBuf>, files: &mut Vec<PathBuf>) -> Result<(), Error> {
+fn assemble_paths<P1: AsRef<Path>, P2: AsRef<Path>>(
+    root: P1,
+    path: P2,
+    directories: &mut Vec<PathBuf>,
+    files: &mut Vec<PathBuf>,
+) -> Result<(), Error> {
     let canon = path.as_ref().to_path_buf().canonicalize()?;
     let Ok(relative) = canon.strip_prefix(&root) else {
-        return Err(Error::other(format!("{} canonicalizes to outside the provided root", path.as_ref().to_string_lossy())));
+        return Err(Error::other(format!(
+            "{} canonicalizes to outside the provided root",
+            path.as_ref().to_string_lossy()
+        )));
     };
     if path.as_ref().is_dir() {
         directories.push(relative.to_path_buf());
@@ -453,7 +494,10 @@ fn assemble_paths<P1: AsRef<Path>, P2: AsRef<Path>>(root: P1, path: P2, director
         files.push(relative.to_path_buf());
         Ok(())
     } else {
-        Err(Error::other(format!("{} is not a file or directory", path.as_ref().to_string_lossy())))
+        Err(Error::other(format!(
+            "{} is not a file or directory",
+            path.as_ref().to_string_lossy()
+        )))
     }
 }
 
@@ -501,7 +545,9 @@ fn main() {
         std::process::exit(1);
     }
     if !cmdline.test {
-        let root = PathBuf::from(cmdline.path).canonicalize().expect("--path should canonicalize");
+        let root = PathBuf::from(cmdline.path)
+            .canonicalize()
+            .expect("--path should canonicalize");
         println!("{}", install_sh(root).expect("install.sh should generate"));
         println!("echo all files successfully installed");
     } else {
