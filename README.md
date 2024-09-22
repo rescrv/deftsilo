@@ -1,9 +1,38 @@
 deftsilo
 ========
 
-deftsilo is a dotfiles manager that focuses on portability.  Deftsilo generates as an intermediary a shell script that
-ensures portability and safety for updating dotfiles.  The resulting script will not overwrite dotfiles that have not
-been checked into git.  For example, if `~/dotfiles` held dotfiles, we could do the following:
+deftsilo is a powerful and minimalistic dotfiles management tool written in Rust.  It enables power users to easily
+synchronize their home directory dotfiles (deftsilo is an anagram for dotfiles), ensuring consistency across systems.
+The chief problem it solves is the bootstrap problem:  While the build-time dependencies include Rust and git, the
+output is a POSIX-compatible shell script that will install the files by copying them or by creating a symlink farm.
+Consequently one can export dotfiles to systems without Rust or git.  That last bit's become less important with the
+advent of container-based computing, but it's still handy to bootstrap a new machine every few years without having to
+do anything special.
+
+Key Features
+------------
+
+- **Platform-agnostic synchronization:** Generates POSIX-compatible shell scripts for applying and managing dotfiles on
+  popular UNIX-based systems like Linux, macOS, BSD, and others that support a POSIX-compatible shell.
+- **Git integration:** Leverages Git to track changes and ensures that only files checked into the repository are
+  overwritten or over-linked during synchronization.  This prevents accidental loss of data and enables easy recovery
+  using Git's version control capabilities.
+- **Build-time dependency on Rust and Git:** At runtime, deftsilo relies solely on a UNIX shell environment.  It has a
+  build-time dependencies on stable Rust and the Git command-line client.
+- **Zero-configuration synchronization (almost):** Once set up with a Git repository containing desired dotfiles,
+  running `deftsilo` from the root of the repository generates an install script that can be used to synchronize files.
+
+Target audience
+---------------
+
+Experienced UNIX users and power users who want an almost-zero-configuration way to manage their dotfiles and ensure
+consistency across multiple machines. This tool is particularly suitable for developers who wish to maintain a single
+source of truth for their home directory.
+
+Usage
+-----
+
+For example, if `~/dotfiles` held dotfiles, we could do the following:
 
 ```console
 cargo run -- --path ~/dotfiles
@@ -44,6 +73,32 @@ Scope
 -----
 
 This crate provides the deftsilo tool for generating portable dotfiles-installing shell scripts.
+
+Q & A
+-----
+
+1. **What is the license for `deftsilo`?**  deftsilo is licensed under the BSD license.
+
+2. **What platforms are supported by `deftsilo`?**  deftsilo is written in Rust and should be portable to any platform
+   that supports Rust.  The output is portable POSIX-compliant shell script.
+
+3. **How does `deftsilo` handle permissions and ownership for created directories and installed files?**  deftsilo uses
+   the `copy` or `ln -s` commands to install files and inherits behavior accordingly.
+
+4. **What happens when the hashes don't match?**  If the current file does not match any of the provided hashes,
+   deftsilo will loudly fail immediately and short-circuit the rest of the script.
+
+5. **Are there any known limitations or edge cases to be aware of?**  deftsilo does not know about case-insensitive
+   filesystems.  It will not warn you if you are about to overwrite a file that differs only in case.
+
+6. **How is the generated shell script validated?**  `deftsilo --test` will generate as output the unit tests for the
+   generated script.  Invoke it with `deftsilo --test > unittest.sh && /bin/my-shell unittest.sh`.
+
+7. **Are there any plans or ideas for future developments?**  I'm soliciting feedback here.  I rarely change my
+   dotfiles, so there's little need to interact with this when it works.
+
+8. **How can users provide feedback or report issues?**  Clone the github repo and email me at the address in the
+   changelog.
 
 Documentation
 -------------
